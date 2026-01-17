@@ -74,7 +74,7 @@ fun parseComic(json: String): Comic? {
 fun comicToRfc822(year: String, month: String, day: String): String {
     val dt = LocalDateTime.of(year.toInt(), month.toInt(), day.toInt(), 0, 0)
     val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.ENGLISH)
-    dt.atZone(ZoneOffset.UTC).format(formatter)
+    return dt.atZone(ZoneOffset.UTC).format(formatter)
 }
 
 // Compose RSS XML
@@ -109,35 +109,37 @@ fun makeRss(comic: Comic, pubDate: String): String = """
 </rss>
 """.trimIndent()
 
-// MAIN SEQUENCE
-val seenComics = loadSeenComics()
-val latestNum = fetchLatestComicNumber()
-if (latestNum == null) {
-    println("Could not fetch the latest xkcd.")
-    return
-}
-if (seenComics.size >= latestNum) {
-    println("All comics seen, resetting.")
-    seenComics.clear()
+fun main() {
+    // MAIN SEQUENCE
+    val seenComics = loadSeenComics()
+    val latestNum = fetchLatestComicNumber()
+    if (latestNum == null) {
+        println("Could not fetch the latest xkcd.")
+        return
+    }
+    if (seenComics.size >= latestNum) {
+        println("All comics seen, resetting.")
+        seenComics.clear()
+        saveSeenComics(seenComics)
+    }
+
+    val fetched = fetchRandomComic(seenComics, latestNum)
+    if (fetched == null) {
+        println("Could not get a comic.")
+        return
+    }
+    val (comicNum, comicJson) = fetched
+    val comic = parseComic(comicJson) ?: throw Exception("Failed to parse comic json")
+
+    seenComics.add(comic.num)
     saveSeenComics(seenComics)
-}
-
-val fetched = fetchRandomComic(seenComics, latestNum)
-if (fetched == null) {
-    println("Could not get a comic.")
-    return
-}
-val (comicNum, comicJson) = fetched
-val comic = parseComic(comicJson) ?: throw Exception("Failed to parse comic json")
-
-seenComics.add(comic.num)
-saveSeenComics(seenComics)
-val pubDate = comicToRfc822(comic.year, comic.month, comic.day)
-val rssString = makeRss(comic, pubDate)
+    val pubDate = comicToRfc822(comic.year, comic.month, comic.day)
+    val rssString = makeRss(comic, pubDate)
 
 // Ensure 'docs/rss' exists, then write file there
-val rssDir = Paths.get("docs/rss")
-Files.createDirectories(rssDir)
-File(rssDir.resolve("xkcd_feed.xml").toString()).writeText(rssString)
+    val rssDir = Paths.get("docs/rss")
+    Files.createDirectories(rssDir)
+    File(rssDir.resolve("xkcd_feed.xml").toString()).writeText(rssString)
 
-println("RSS feed written for XKCD#${comic.num}: ${comic.title}")
+    println("RSS feed written for XKCD#${comic.num}: ${comic.title}")
+}
