@@ -1,3 +1,14 @@
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import org.intellij.lang.annotations.Language
 import java.net.HttpURLConnection
 import java.net.URL
 import java.io.File
@@ -7,67 +18,62 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.random.Random
 
 val seenComicsFile = File("seen_comics.json")
 
-// Basic helper to read JSON array of numbers, or empty if missing/invalid
+val json = Json {
+    prettyPrint = true
+    isLenient = true
+}
+
+val client = HttpClient(CIO) {
+    install(ContentNegotiation) {
+        json(json)
+    }
+}
+
 fun loadSeenComics(): MutableSet<Int> {
     return if (seenComicsFile.exists()) {
-        val content = seenComicsFile.readText()
-        Regex("""\d+""").findAll(content).map { it.value.toInt() }.toMutableSet()
+        val content = seenComicsFile.inputStream().reader().readText()
+        json.decodeFromString<MutableSet<Int>>(content)
     } else {
         mutableSetOf()
     }
 }
 
 fun saveSeenComics(comics: Set<Int>) {
-    seenComicsFile.writeText(comics.joinToString(prefix = "[", postfix = "]"))
+    seenComicsFile.writeText(json.encodeToString(comics))
 }
 
-// HTTP GET helper
-fun httpGetJson(urlStr: String): String? {
-    try {
-        val url = URL(urlStr)
-        with(url.openConnection() as HttpURLConnection) {
-            connectTimeout = 5000
-            readTimeout = 5000
-            requestMethod = "GET"
-            inputStream.bufferedReader().use { return it.readText() }
-        }
-    } catch (e: Exception) {
-        println("HTTP GET failed: $e")
-        return null
-    }
-}
+@Serializable
+data class Comic(
+    val month: String,
+    val num: Int,
+    val link: String,
+    val year: String,
+    val news: String,
+    val safe_title: String,
+    val transcript: String,
+    val alt: String,
+    val img: String,
+    val title: String,
+    val day: String,
+)
 
-// Fetch the number of the latest XKCD comic
-fun fetchLatestComicNumber(): Int? {
-    val json = httpGetJson("https://xkcd.com/info.0.json") ?: return null
-    return Regex("""["']num["']\s*:\s*(\d+)""").find(json)?.groupValues?.get(1)?.toIntOrNull()
+suspend fun fetchLatestComicNumber(): Int {
+    val latestComic = client.get("https://xkcd.com/info.0.json").body<Comic>()
+    return latestComic.num
 }
 
 // Get a random comic (with retries), skipping previously seen
-fun fetchRandomComic(seen: Set<Int>, latestComic: Int, maxAttempts: Int = 10): Pair<Int, String>? {
-    repeat(maxAttempts) {
-        val randNum = Random.nextInt(1, latestComic + 1)
-        if (randNum in seen) return@repeat
-        val json = httpGetJson("https://xkcd.com/$randNum/info.0.json")
-        if (json != null && "\"num\":" in json) return randNum to json
-        Thread.sleep(1000)
-    }
-    println("Could not get unseen comic after $maxAttempts attempts.")
-    return null
-}
+suspend fun fetchRandomComic(seen: Set<Int>, latestComic: Int): Comic {
+    val indexToFetch = List(latestComic) { index ->
+        index
+    }.filter { it !in seen }
+        .shuffled()
+        .first()
 
-// Parse comic fields from JSON (minimal, regex-based)
-data class Comic(val num: Int, val title: String, val img: String, val alt: String, val year: String, val month: String, val day: String)
-
-fun parseComic(json: String): Comic? {
-    fun field(name: String): String =
-        Regex(""""$name"\s*:\s*"([^"]*)"""").find(json)?.groupValues?.get(1) ?: ""
-    val num = Regex(""""num"\s*:\s*(\d+)""").find(json)?.groupValues?.get(1)?.toIntOrNull() ?: return null
-    return Comic(num, field("title"), field("img"), field("alt"), field("year"), field("month"), field("day"))
+    return client.get("https://xkcd.com/$indexToFetch/info.0.json\"").body<Comic>()
 }
 
 // Format date as RFC822 GMT
@@ -78,7 +84,15 @@ fun comicToRfc822(year: String, month: String, day: String): String {
 }
 
 // Compose RSS XML
-fun makeRss(comic: Comic, pubDate: String): String = """
+fun makeRss(comic: Comic, pubDate: String): String {
+    @Language("HTML") val htmlContent = """<div>
+            <a href="${comic.img}">
+              <img src="${comic.img}" alt="${comic.alt}" style="height: auto;" />
+            </a>
+            <p>[<a href="https://xkcd.com/${comic.num}/">#${comic.num}</a>] ${comic.alt}</p>
+          </div>"""
+
+    @Language("XML") val xml = """
 <?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
@@ -94,12 +108,7 @@ fun makeRss(comic: Comic, pubDate: String): String = """
       <link>https://xkcd.com/${comic.num}/</link>
       <description>
         <![CDATA[
-          <div>
-            <a href="${comic.img}">
-              <img src="${comic.img}" alt="${comic.alt}" style="height: auto;" />
-            </a>
-            <p>[<a href="https://xkcd.com/${comic.num}/">#${comic.num}</a>] ${comic.alt}</p>
-          </div>
+          $htmlContent
         ]]>
       </description>
       <guid isPermaLink="true">https://xkcd.com/${comic.num}/</guid>
@@ -107,38 +116,33 @@ fun makeRss(comic: Comic, pubDate: String): String = """
     </item>
   </channel>
 </rss>
-""".trimIndent()
+"""
+    return xml.trimIndent()
+}
 
-fun main() {
+suspend fun main() {
     // MAIN SEQUENCE
-    val seenComics = loadSeenComics()
+    var seenComics = loadSeenComics()
     val latestNum = fetchLatestComicNumber()
-    if (latestNum == null) {
-        println("Could not fetch the latest xkcd.")
-        return
-    }
+
     if (seenComics.size >= latestNum) {
         println("All comics seen, resetting.")
-        seenComics.clear()
+        seenComics = mutableSetOf()
         saveSeenComics(seenComics)
     }
 
-    val fetched = fetchRandomComic(seenComics, latestNum)
-    if (fetched == null) {
-        println("Could not get a comic.")
-        return
-    }
-    val (comicNum, comicJson) = fetched
-    val comic = parseComic(comicJson) ?: throw Exception("Failed to parse comic json")
+    val comic = fetchRandomComic(seenComics, latestNum)
 
     seenComics.add(comic.num)
     saveSeenComics(seenComics)
     val pubDate = comicToRfc822(comic.year, comic.month, comic.day)
     val rssString = makeRss(comic, pubDate)
 
-// Ensure 'docs/rss' exists, then write file there
+    // Ensure 'docs/rss' exists, then write file there
     val rssDir = Paths.get("docs/rss")
-    Files.createDirectories(rssDir)
+    withContext(Dispatchers.IO) {
+        Files.createDirectories(rssDir)
+    }
     File(rssDir.resolve("xkcd_feed.xml").toString()).writeText(rssString)
 
     println("RSS feed written for XKCD#${comic.num}: ${comic.title}")
