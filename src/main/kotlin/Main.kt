@@ -1,14 +1,12 @@
-import formatRfc822
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -108,7 +106,7 @@ private fun comicToItemXml(comic: Comic): String {
 
     val itemHtml = stringSubstitutor.replace(itemHtmlTemplate)
     val itemXml = stringSubstitutor.replace(itemXmlTemplate)
-        .replace("\$htmlContent", itemHtml)
+        .replace($$"$htmlContent", itemHtml)
     return itemXml
 }
 
