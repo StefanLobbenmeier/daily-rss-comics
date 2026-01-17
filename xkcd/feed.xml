@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>[xkcd] Random Comic Feed</title>
+        <link>https://xkcd.com/</link>
+        <description>A feed of random xkcd comics.</description>
+        <language>en-us</language>
+        <copyright>xkcd.com</copyright>
+        <lastBuildDate>Sat, 17 Jan 2026 23:22:53 +0100</lastBuildDate>
+        <atom:link href="https://stefanlobbenmeier.github.io/daily-rss-comics/xkcd/feed.xml" rel="self"
+                   type="application/rss+xml"/>
+        <item>
+    <title>In the Trees</title>
+    <link>https://xkcd.com/71/</link>
+    <description>
+        <![CDATA[
+          <div>
+    <a href="https://imgs.xkcd.com/comics/in_the_trees.jpg">
+        <img src="https://imgs.xkcd.com/comics/in_the_trees.jpg" alt="It was tricky." style="height: auto;" />
+    </a>
+    <p>[<a href="https://xkcd.com/71/">#71</a>] It was tricky.</p>
+</div>
+
+        ]]>
+    </description>
+    <guid isPermaLink="true">https://xkcd.com/71/</guid>
+    <pubDate>Fri, 3 Mar 2006 00:00:00 GMT</pubDate>
+</item>
+
+    </channel>
+</rss>
