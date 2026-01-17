@@ -2,8 +2,8 @@ name: Update RSS Feed
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # Runs daily at 8:00 AM Greek time (UTC+3)
-  workflow_dispatch:  # Allows manual triggering of the workflow
+    - cron: '0 5 * * *'
+  workflow_dispatch:
   push:
     branches:
       - 'main'
@@ -17,9 +17,6 @@ jobs:
   update_rss:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write  # Allow write access to the repository contents
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -29,7 +26,6 @@ jobs:
         with:
           gradle-version: 'current'
 
-      # Step 5: Run the script
       - name: Run script
         run: gradle run
 
