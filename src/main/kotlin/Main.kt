@@ -73,7 +73,7 @@ suspend fun fetchRandomComic(seen: Set<Int>, latestComic: Int): Comic {
         .shuffled()
         .first()
 
-    return client.get("https://xkcd.com/$indexToFetch/info.0.json\"").body<Comic>()
+    return client.get("https://xkcd.com/$indexToFetch/info.0.json").body<Comic>()
 }
 
 // Format date as RFC822 GMT
@@ -121,7 +121,6 @@ fun makeRss(comic: Comic, pubDate: String): String {
 }
 
 suspend fun main() {
-    // MAIN SEQUENCE
     var seenComics = loadSeenComics()
     val latestNum = fetchLatestComicNumber()
 
@@ -138,7 +137,6 @@ suspend fun main() {
     val pubDate = comicToRfc822(comic.year, comic.month, comic.day)
     val rssString = makeRss(comic, pubDate)
 
-    // Ensure 'docs/rss' exists, then write file there
     val rssDir = Paths.get("docs/rss")
     withContext(Dispatchers.IO) {
         Files.createDirectories(rssDir)
