@@ -8,6 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.apache.commons.text.StringSubstitutor
+import org.apache.commons.text.lookup.StringLookup
 import org.intellij.lang.annotations.Language
 import java.io.File
 import java.nio.file.Files
@@ -83,6 +85,11 @@ fun comicToRfc822(year: String, month: String, day: String): String {
 
 // Compose RSS XML
 fun makeRss(comic: Comic, pubDate: String): String {
+    val map = mutableMapOf<String, Any>()
+
+
+
+
     @Language("HTML") val htmlContent = """<div>
             <a href="${comic.img}">
               <img src="${comic.img}" alt="${comic.alt}" style="height: auto;" />
@@ -90,32 +97,13 @@ fun makeRss(comic: Comic, pubDate: String): String {
             <p>[<a href="https://xkcd.com/${comic.num}/">#${comic.num}</a>] ${comic.alt}</p>
           </div>"""
 
-    @Language("XML") val xml = """
-<?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>[xkcd] Random Comic Feed</title>
-    <link>https://xkcd.com/</link>
-    <description>A feed of random xkcd comics.</description>
-    <language>en-us</language>
-    <copyright>xkcd.com</copyright>
-    <lastBuildDate>$pubDate</lastBuildDate>
-    <atom:link href="https://stefanlobbenmeier.github.io/daily-rss-comics/xkcd/feed.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>${comic.title}</title>
-      <link>https://xkcd.com/${comic.num}/</link>
-      <description>
-        <![CDATA[
-          $htmlContent
-        ]]>
-      </description>
-      <guid isPermaLink="true">https://xkcd.com/${comic.num}/</guid>
-      <pubDate>$pubDate</pubDate>
-    </item>
-  </channel>
-</rss>
-"""
-    return xml.trimIndent()
+
+
+
+    val rssTemplate = Comic.javaClass.getResourceAsStream("xkcd/feed.xml").reader().readText()
+    val stringSubstitutor = StringSubstitutor(map)
+
+    return stringSubstitutor.replace(rssTemplate)
 }
 
 suspend fun main() {
