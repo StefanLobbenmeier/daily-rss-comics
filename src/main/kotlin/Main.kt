@@ -21,7 +21,7 @@ import java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
 import java.time.temporal.TemporalAccessor
 import java.util.Locale
 
-val seenComicsFile = File("seen_comics.json")
+val seenComicsFile = File("rss/xkcd/seen.json")
 
 val json = Json {
     prettyPrint = true
