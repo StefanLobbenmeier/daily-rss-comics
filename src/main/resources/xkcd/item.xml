@@ -1,5 +1,5 @@
 <item>
-    <title>${comic.title}</title>
+    <title>[${comic.num}] ${comic.title}</title>
     <link>https://xkcd.com/${comic.num}/</link>
     <description>
         <![CDATA[
