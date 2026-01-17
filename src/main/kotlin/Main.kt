@@ -100,7 +100,7 @@ fun makeRss(comic: Comic, pubDate: String): String {
     <language>en-us</language>
     <copyright>xkcd.com</copyright>
     <lastBuildDate>$pubDate</lastBuildDate>
-    <atom:link href="https://tzoral.github.io/daily-random-xkcd/docs/rss/xkcd_feed.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://stefanlobbenmeier.github.io/daily-rss-comics/xkcd/feed.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>${comic.title}</title>
       <link>https://xkcd.com/${comic.num}/</link>
