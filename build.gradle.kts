@@ -29,3 +29,7 @@ kotlin {
 tasks.test {
     useJUnitPlatform()
 }
+
+application {
+    mainClass.set("MainKt")
+}
