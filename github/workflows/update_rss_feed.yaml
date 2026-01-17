@@ -1,0 +1,47 @@
+name: Update RSS Feed
+
+on:
+  schedule:
+    - cron: '0 5 * * *'  # Runs daily at 8:00 AM Greek time (UTC+3)
+  workflow_dispatch:  # Allows manual triggering of the workflow
+
+jobs:
+  update_rss:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # Allow write access to the repository contents
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: 'current'
+
+      # Step 5: Run the script
+      - name: Run script
+        run: gradle run
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: 'github-pages'
+          path: 'rss'
+
+      # Step 6: Commit and push the updated seen_comics.json and RSS feed
+      - name: Commit and push changes
+        run: |
+          cd rss
+          git config --local user.name "github-actions"
+          git config --local user.email "github-actions@github.com"
+
+          git add xkcd/seen.json xkcd/feed.xml
+          git commit -m "Update seen comics and RSS feed" || echo "No changes to commit"
+
+          # Push the changes
+          git push origin github-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for authentication
