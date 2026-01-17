@@ -21,7 +21,8 @@ import java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
 import java.time.temporal.TemporalAccessor
 import java.util.Locale
 
-val seenComicsFile = File("rss/xkcd/seen.json")
+val rssDir = Paths.get("rss/xkcd")
+val seenComicsFile = rssDir.resolve("seen.json").toFile()
 
 val json = Json {
     prettyPrint = true
@@ -43,8 +44,11 @@ fun loadSeenComics(): MutableSet<Int> {
     }
 }
 
-fun saveSeenComics(comics: Set<Int>) {
-    seenComicsFile.writeText(json.encodeToString(comics))
+suspend fun saveSeenComics(comics: Set<Int>) {
+    withContext(Dispatchers.IO) {
+        Files.createDirectories(rssDir)
+        seenComicsFile.writeText(json.encodeToString(comics))
+    }
 }
 
 @Serializable
@@ -128,7 +132,6 @@ suspend fun main() {
     val pubDate = formatRfc822(ZonedDateTime.now())
     val rssString = makeRss(comic, pubDate)
 
-    val rssDir = Paths.get("rss/xkcd")
     withContext(Dispatchers.IO) {
         Files.createDirectories(rssDir)
         File(rssDir.resolve("feed.xml").toString()).writeText(rssString)
