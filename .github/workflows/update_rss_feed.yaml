@@ -25,23 +25,11 @@ jobs:
       - name: Run script
         run: gradle run
 
-      - name: Checkout code
-        uses: actions/checkout@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          ref: 'github-pages'
           path: 'rss'
 
-      # Step 6: Commit and push the updated seen_comics.json and RSS feed
-      - name: Commit and push changes
-        run: |
-          cd rss
-          git config --local user.name "github-actions"
-          git config --local user.email "github-actions@github.com"
-
-          git add xkcd/seen.json xkcd/feed.xml
-          git commit -m "Update seen comics and RSS feed" || echo "No changes to commit"
-
-          # Push the changes
-          git push origin github-pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for authentication
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
