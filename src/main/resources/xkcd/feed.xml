@@ -6,7 +6,7 @@
         <description>A feed of random xkcd comics.</description>
         <language>en-us</language>
         <copyright>xkcd.com</copyright>
-        <lastBuildDate>$pubDate</lastBuildDate>
+        <lastBuildDate>$buildDate</lastBuildDate>
         <atom:link href="https://stefanlobbenmeier.github.io/daily-rss-comics/xkcd/feed.xml" rel="self"
                    type="application/rss+xml"/>
         $items

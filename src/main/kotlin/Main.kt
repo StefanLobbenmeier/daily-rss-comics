@@ -1,3 +1,4 @@
+import formatRfc822
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -5,6 +6,9 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -13,15 +17,17 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
 import java.time.temporal.TemporalAccessor
-import java.util.Locale
+import kotlin.random.Random
 
 val rssDir = Paths.get("rss/xkcd")
+
+val rssTemplate = getStringResource("xkcd/feed.xml")
+val itemXmlTemplate = getStringResource("xkcd/item.xml")
+val itemHtmlTemplate = getStringResource("xkcd/item.html")
 
 val json = Json {
     prettyPrint = true
@@ -52,20 +58,27 @@ data class Comic(
 
 }
 
-suspend fun fetchLatestComicNumber(): Int {
-    val latestComic = client.get("https://xkcd.com/info.0.json").body<Comic>()
-    return latestComic.num
+suspend fun fetchLatestComic(): Comic {
+    return client.get("https://xkcd.com/info.0.json").body<Comic>()
 }
 
 // Get a random comic (with retries), skipping previously seen
-suspend fun fetchRandomComic(latestComic: Int): Comic {
-    val indexToFetch = List(latestComic) { index ->
-        index
-    }
-        .shuffled()
-        .first()
+suspend fun fetchComics(latestComic: Comic): List<Comic> {
+    val comics = mutableListOf<Comic>()
 
-    return client.get("https://xkcd.com/$indexToFetch/info.0.json").body<Comic>()
+
+    generateSequence {
+        // random comic index, exclude index of latest comic because we already have that one
+        Random.nextInt(1, latestComic.num)
+    }.distinct()
+        .take(9)
+        .asFlow()
+        .map { index -> client.get("https://xkcd.com/$index/info.0.json").body<Comic>() }
+        .collect { comic -> comics.add(comic) }
+
+    comics.add(latestComic)
+
+    return comics
 }
 
 private fun formatRfc822(dt: TemporalAccessor): String {
@@ -73,43 +86,47 @@ private fun formatRfc822(dt: TemporalAccessor): String {
 }
 
 // Compose RSS XML
-fun makeRss(comic: Comic, pubDate: String): String {
-    val rssTemplate = getStringResource("xkcd/feed.xml")
-    val itemXmlTemplate = getStringResource("xkcd/item.xml")
-    val itemHtmlTemplate = getStringResource("xkcd/item.html")
+fun makeRss(comics: List<Comic>): String {
+    val itemsXml = comics.map(::comicToItemXml).joinToString("\n")
 
-    val stringSubstitutor = StringSubstitutor({ key -> when(key) {
-        "comic.img" -> comic.img
-        "comic.title" -> comic.title
-        "comic.alt" -> comic.alt
-        "comic.num" -> comic.num.toString()
-        "comic.date" -> formatRfc822(comic.date.atStartOfDay(ZoneOffset.UTC))
-        else -> throw Exception("Unknown key $key")
-    } })
+    return rssTemplate
+        .replace("\$items", itemsXml)
+        .replace("\$buildDate", formatRfc822(ZonedDateTime.now()))
+}
+
+private fun comicToItemXml(comic: Comic): String {
+    val stringSubstitutor = StringSubstitutor({ key ->
+        when (key) {
+            "comic.img" -> comic.img
+            "comic.title" -> comic.title
+            "comic.alt" -> comic.alt
+            "comic.num" -> comic.num.toString()
+            "comic.date" -> formatRfc822(comic.date.atStartOfDay(ZoneOffset.UTC))
+            else -> throw Exception("Unknown key $key")
+        }
+    })
 
     val itemHtml = stringSubstitutor.replace(itemHtmlTemplate)
     val itemXml = stringSubstitutor.replace(itemXmlTemplate)
         .replace("\$htmlContent", itemHtml)
-    return rssTemplate
-        .replace("\$items", itemXml)
-        .replace("\$pubDate", pubDate)
+    return itemXml
 }
 
 private fun getStringResource(path: String): String =
     Comic::class.java.getResourceAsStream(path)!!.reader().readText()
 
 suspend fun main() {
-    val latestNum = fetchLatestComicNumber()
+    val latestComic = fetchLatestComic()
+    val comics = fetchComics(latestComic)
 
-    val comic = fetchRandomComic(latestNum)
-
-    val pubDate = formatRfc822(ZonedDateTime.now())
-    val rssString = makeRss(comic, pubDate)
+    val rssString = makeRss(comics)
 
     withContext(Dispatchers.IO) {
         Files.createDirectories(rssDir)
         File(rssDir.resolve("feed.xml").toString()).writeText(rssString)
     }
 
-    println("RSS feed written for XKCD#${comic.num}: ${comic.title}")
+    comics.forEach { comic ->
+        println("RSS feed written for XKCD#${comic.num}: ${comic.title}")
+    }
 }
