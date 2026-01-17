@@ -22,7 +22,6 @@ import java.time.temporal.TemporalAccessor
 import java.util.Locale
 
 val rssDir = Paths.get("rss/xkcd")
-val seenComicsFile = rssDir.resolve("seen.json").toFile()
 
 val json = Json {
     prettyPrint = true
@@ -32,22 +31,6 @@ val json = Json {
 val client = HttpClient(CIO) {
     install(ContentNegotiation) {
         json(json)
-    }
-}
-
-fun loadSeenComics(): MutableSet<Int> {
-    return if (seenComicsFile.exists()) {
-        val content = seenComicsFile.inputStream().reader().readText()
-        json.decodeFromString<MutableSet<Int>>(content)
-    } else {
-        mutableSetOf()
-    }
-}
-
-suspend fun saveSeenComics(comics: Set<Int>) {
-    withContext(Dispatchers.IO) {
-        Files.createDirectories(rssDir)
-        seenComicsFile.writeText(json.encodeToString(comics))
     }
 }
 
@@ -75,10 +58,10 @@ suspend fun fetchLatestComicNumber(): Int {
 }
 
 // Get a random comic (with retries), skipping previously seen
-suspend fun fetchRandomComic(seen: Set<Int>, latestComic: Int): Comic {
+suspend fun fetchRandomComic(latestComic: Int): Comic {
     val indexToFetch = List(latestComic) { index ->
         index
-    }.filter { it !in seen }
+    }
         .shuffled()
         .first()
 
@@ -116,19 +99,10 @@ private fun getStringResource(path: String): String =
     Comic::class.java.getResourceAsStream(path)!!.reader().readText()
 
 suspend fun main() {
-    var seenComics = loadSeenComics()
     val latestNum = fetchLatestComicNumber()
 
-    if (seenComics.size >= latestNum) {
-        println("All comics seen, resetting.")
-        seenComics = mutableSetOf()
-        saveSeenComics(seenComics)
-    }
+    val comic = fetchRandomComic(latestNum)
 
-    val comic = fetchRandomComic(seenComics, latestNum)
-
-    seenComics.add(comic.num)
-    saveSeenComics(seenComics)
     val pubDate = formatRfc822(ZonedDateTime.now())
     val rssString = makeRss(comic, pubDate)
 
