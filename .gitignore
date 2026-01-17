@@ -1,3 +1,6 @@
 .gradle
 .idea
 *.iml
+
+# keep generated files from the main branch
+rss

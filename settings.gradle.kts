@@ -1,1 +1,1 @@
-rootProject.name = "daily-random-xkcd-kt"
+rootProject.name = "daily-rss-comics"

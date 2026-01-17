@@ -9,8 +9,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.intellij.lang.annotations.Language
-import java.net.HttpURLConnection
-import java.net.URL
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -137,11 +135,11 @@ suspend fun main() {
     val pubDate = comicToRfc822(comic.year, comic.month, comic.day)
     val rssString = makeRss(comic, pubDate)
 
-    val rssDir = Paths.get("docs/rss")
+    val rssDir = Paths.get("rss/xkcd")
     withContext(Dispatchers.IO) {
         Files.createDirectories(rssDir)
+        File(rssDir.resolve("feed.xml").toString()).writeText(rssString)
     }
-    File(rssDir.resolve("xkcd_feed.xml").toString()).writeText(rssString)
 
     println("RSS feed written for XKCD#${comic.num}: ${comic.title}")
 }
