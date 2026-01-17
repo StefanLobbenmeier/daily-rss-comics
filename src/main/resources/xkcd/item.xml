@@ -1,0 +1,11 @@
+<item>
+    <title>${comic.title}</title>
+    <link>https://xkcd.com/${comic.num}/</link>
+    <description>
+        <![CDATA[
+          $htmlContent
+        ]]>
+    </description>
+    <guid isPermaLink="true">https://xkcd.com/${comic.num}/</guid>
+    <pubDate>${comic.date}</pubDate>
+</item>

@@ -9,14 +9,16 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.apache.commons.text.StringSubstitutor
-import org.apache.commons.text.lookup.StringLookup
-import org.intellij.lang.annotations.Language
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
+import java.time.temporal.TemporalAccessor
 import java.util.Locale
 
 val seenComicsFile = File("seen_comics.json")
@@ -58,7 +60,10 @@ data class Comic(
     val img: String,
     val title: String,
     val day: String,
-)
+) {
+    val date: LocalDate get() = LocalDate.of(year.toInt(), month.toInt(), day.toInt())
+
+}
 
 suspend fun fetchLatestComicNumber(): Int {
     val latestComic = client.get("https://xkcd.com/info.0.json").body<Comic>()
@@ -76,35 +81,35 @@ suspend fun fetchRandomComic(seen: Set<Int>, latestComic: Int): Comic {
     return client.get("https://xkcd.com/$indexToFetch/info.0.json").body<Comic>()
 }
 
-// Format date as RFC822 GMT
-fun comicToRfc822(year: String, month: String, day: String): String {
-    val dt = LocalDateTime.of(year.toInt(), month.toInt(), day.toInt(), 0, 0)
-    val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.ENGLISH)
-    return dt.atZone(ZoneOffset.UTC).format(formatter)
+private fun formatRfc822(dt: TemporalAccessor): String {
+    return  RFC_1123_DATE_TIME.format(dt)
 }
 
 // Compose RSS XML
 fun makeRss(comic: Comic, pubDate: String): String {
-    val map = mutableMapOf<String, Any>()
+    val rssTemplate = getStringResource("xkcd/feed.xml")
+    val itemXmlTemplate = getStringResource("xkcd/item.xml")
+    val itemHtmlTemplate = getStringResource("xkcd/item.html")
 
+    val stringSubstitutor = StringSubstitutor({ key -> when(key) {
+        "comic.img" -> comic.img
+        "comic.title" -> comic.title
+        "comic.alt" -> comic.alt
+        "comic.num" -> comic.num.toString()
+        "comic.date" -> formatRfc822(comic.date.atStartOfDay(ZoneOffset.UTC))
+        else -> throw Exception("Unknown key $key")
+    } })
 
-
-
-    @Language("HTML") val htmlContent = """<div>
-            <a href="${comic.img}">
-              <img src="${comic.img}" alt="${comic.alt}" style="height: auto;" />
-            </a>
-            <p>[<a href="https://xkcd.com/${comic.num}/">#${comic.num}</a>] ${comic.alt}</p>
-          </div>"""
-
-
-
-
-    val rssTemplate = Comic.javaClass.getResourceAsStream("xkcd/feed.xml").reader().readText()
-    val stringSubstitutor = StringSubstitutor(map)
-
-    return stringSubstitutor.replace(rssTemplate)
+    val itemHtml = stringSubstitutor.replace(itemHtmlTemplate)
+    val itemXml = stringSubstitutor.replace(itemXmlTemplate)
+        .replace("\$htmlContent", itemHtml)
+    return rssTemplate
+        .replace("\$items", itemXml)
+        .replace("\$pubDate", pubDate)
 }
+
+private fun getStringResource(path: String): String =
+    Comic::class.java.getResourceAsStream(path)!!.reader().readText()
 
 suspend fun main() {
     var seenComics = loadSeenComics()
@@ -120,7 +125,7 @@ suspend fun main() {
 
     seenComics.add(comic.num)
     saveSeenComics(seenComics)
-    val pubDate = comicToRfc822(comic.year, comic.month, comic.day)
+    val pubDate = formatRfc822(ZonedDateTime.now())
     val rssString = makeRss(comic, pubDate)
 
     val rssDir = Paths.get("rss/xkcd")
