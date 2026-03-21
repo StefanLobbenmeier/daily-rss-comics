@@ -30,6 +30,7 @@ val itemHtmlTemplate = getStringResource("xkcd/item.html")
 val json = Json {
     prettyPrint = true
     isLenient = true
+    ignoreUnknownKeys = true
 }
 
 val client = HttpClient(CIO) {
@@ -39,6 +40,7 @@ val client = HttpClient(CIO) {
 }
 
 @Serializable
+
 data class Comic(
     val month: String,
     val num: Int,
