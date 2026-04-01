@@ -1,0 +1,21 @@
+name: Run tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  update_rss:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: 'current'
+          cache-read-only: '${{ github.event.repository != null && github.ref_name != github.event.repository.default_branch }}'
+
+      - run: gradle check
