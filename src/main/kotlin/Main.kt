@@ -18,6 +18,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
+import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAccessor
 import kotlin.random.Random
 
@@ -67,11 +68,7 @@ suspend fun fetchComics(latestComic: Comic): List<Comic> {
     val comics = mutableListOf<Comic>()
 
 
-    generateSequence {
-        // random comic index, exclude index of latest comic because we already have that one
-        Random.nextInt(1, latestComic.num)
-    }.distinct()
-        .take(9)
+    getComicNumbersToFetch(latestComic.num)
         .asFlow()
         .map { index -> client.get("https://xkcd.com/$index/info.0.json").body<Comic>() }
         .collect { comic -> comics.add(comic) }
@@ -79,6 +76,22 @@ suspend fun fetchComics(latestComic: Comic): List<Comic> {
     comics.add(latestComic)
 
     return comics
+}
+
+fun getComicNumbersToFetch(
+    latestComicNumber: Int, targetDate: LocalDate = LocalDate.now(), daysUntilComicsRepeat: Int = 365
+): List<Int> {
+    val startDate = LocalDate.of(2026, 4, 1)
+
+    val listOfAllComics = List(latestComicNumber) { it }
+    val chunks = listOfAllComics.chunked(daysUntilComicsRepeat)
+
+    val deterministicallyShuffledChunks = chunks.mapIndexed { index, comics -> comics.shuffled(Random(index)) }
+    val index = startDate.until(targetDate, ChronoUnit.DAYS)
+
+    return deterministicallyShuffledChunks.map { comics ->
+        comics[index.toInt() % comics.size]
+    }
 }
 
 private fun formatRfc822(dt: TemporalAccessor): String {
