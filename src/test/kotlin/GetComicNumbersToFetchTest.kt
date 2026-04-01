@@ -17,8 +17,8 @@ class GetComicNumbersToFetchTest {
         val run1 = getComicNumbersToFetch(3000)
         val run2 = getComicNumbersToFetch(3001)
 
-        val run1WithoutTheLast = run1.toMutableList().removeLast()
-        val run2WithoutTheLast = run2.toMutableList().removeLast()
+        val run1WithoutTheLast = run1.take(run1.size - 1)
+        val run2WithoutTheLast = run2.take(run2.size - 1)
 
         assertEquals(run1WithoutTheLast, run2WithoutTheLast)
     }
