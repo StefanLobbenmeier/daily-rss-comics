@@ -15,12 +15,14 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.LocalDate
-import java.time.ZoneOffset
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAccessor
+import java.util.*
 import kotlin.random.Random
+
 
 val rssDir = Paths.get("rss/xkcd")
 
@@ -98,6 +100,11 @@ private fun formatRfc822(dt: TemporalAccessor): String {
     return  RFC_1123_DATE_TIME.format(dt)
 }
 
+private fun formatRfc822DateOnly(dt: TemporalAccessor): String {
+    val rfc1123DateOnly = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy", Locale.US)
+    return  rfc1123DateOnly.format(dt)
+}
+
 // Compose RSS XML
 fun makeRss(comics: List<Comic>): String {
     val itemsXml = comics.map(::comicToItemXml).joinToString("\n")
@@ -114,7 +121,7 @@ private fun comicToItemXml(comic: Comic): String {
             "comic.title" -> comic.title
             "comic.alt" -> comic.alt
             "comic.num" -> comic.num.toString()
-            "comic.date" -> formatRfc822(comic.date.atStartOfDay(ZoneOffset.UTC))
+            "comic.date" -> formatRfc822DateOnly(comic.date)
             else -> throw Exception("Unknown key $key")
         }
     })
