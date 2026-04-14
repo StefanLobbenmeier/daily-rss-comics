@@ -85,7 +85,7 @@ fun getComicNumbersToFetch(
 ): List<Int> {
     val startDate = LocalDate.of(2026, 4, 1)
 
-    val listOfAllComics = List(latestComicNumber) { it }
+    val listOfAllComics = List(latestComicNumber) { it + 1 }
     val chunks = listOfAllComics.chunked(daysUntilComicsRepeat)
 
     val deterministicallyShuffledChunks = chunks.mapIndexed { index, comics -> comics.shuffled(Random(index)) }

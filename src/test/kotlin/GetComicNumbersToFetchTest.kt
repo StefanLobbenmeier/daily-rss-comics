@@ -43,6 +43,6 @@ class GetComicNumbersToFetchTest {
         val allComics = allRuns.flatten().distinct()
 
         assertEquals(3000, allComics.size)
-        assertEquals(List(latestComicNumber) {it}, allComics.sorted())
+        assertEquals(List(latestComicNumber) { it + 1 }, allComics.sorted())
     }
 }
